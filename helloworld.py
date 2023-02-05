@@ -83,20 +83,10 @@ class TouchIndicator(Widget):
         else:
             Line(width=0.04*Metrics.cm,cap='round',circle=(self.pos[0],self.pos[1],self.size[0],angle_start,360))           
             Line(width=0.04*Metrics.cm,cap='round',circle=(self.pos[0],self.pos[1],self.size[0],0,self.end_angle(angle_start,arch_angle)))
-        #print(angle_start)
-        #print(arch_angle)
-        #print("")
    
     def outline_instructions(self):
         for segment in self.segments:
-                self.outline_segment(segment[0],segment[1])
-        #if self.arch_angle==360:
-        #    Line(width=0.04*Metrics.cm,cap='round',circle=(self.pos[0],self.pos[1],self.size[0]))
-        #if self.end_angle()>self.start_angle:
-        #    Line(width=0.04*Metrics.cm,cap='round',circle=(self.pos[0],self.pos[1],self.size[0],self.start_angle,self.end_angle()))
-        #else:
-        #    Line(width=0.04*Metrics.cm,cap='round',circle=(self.pos[0],self.pos[1],self.size[0],self.start_angle,360))           
-        #    Line(width=0.04*Metrics.cm,cap='round',circle=(self.pos[0],self.pos[1],self.size[0],0,self.end_angle()))            
+                self.outline_segment(segment[0],segment[1])          
 
     def set_start_angle(self,angle):
         if angle>=360:
@@ -168,18 +158,7 @@ class TouchIndicator(Widget):
         with self.canvas:
             Color(self.red,self.green,self.blue)
             Circle(self.pos,0.75*self.size[0])
-            #Color(1.,.5,0,.5)
-            #Line(width=0.02*Metrics.cm,circle=(self.pos[0],self.pos[1],0.75*self.size[0]+1))
             self.outline_instructions()
-            #encircle_info=input_handler.order_trackers.get(1).calculate_circle_from_touch_indicator(self)
-            #encircle=encircle_info[0]
-            #if encircle:
-            #    arc=encircle_info[1]
-            #    if arc<0:
-            #        arc=360+arc
-            #    self.drain_angle_start=arc
-            #    encircle_=(encircle[0],encircle[1],encircle[2],arc,360)
-            #    Line(circle=encircle_,width=2)
             if self.is_drain_running and self.is_connected_to_order_tracker():
                 Line(width=0.04*Metrics.cm,circle=self.encircle)
             if self.number:
@@ -281,6 +260,9 @@ class InputHandler():
         self.is_choice_done=False
         self.choice_timer=0
         self.max_trackers=(WINDOW_HEIGHT-2*Metrics.mm)/(5*Metrics.mm)
+        self.DEL_TIME_MAX = 5000
+        self.chosen_deletion_timer = self.DEL_TIME_MAX
+        self.is_chosen_deletion_running = False
    
     def choice_process(self):
         if self.choice_timer < 120:
@@ -321,11 +303,23 @@ class InputHandler():
             ti = self.touch_indicators.pop(touch.uid)
             self.ti_to_remove.append(ti)
             #if self.chosen_indicators.count(ti) > 0: ###trzeba zrobić usuwanie
-            #    self.chosen_indicators.remove(ti)       ti już użytych do losowania
+            #    self.chosen_indicators.remove(ti)    ###ti już użytych do losowania
             
         else:
-            self.touch_indicators.pop(touch.uid)
+            ti = self.touch_indicators.pop(touch.uid)
+            self.ti_to_remove.append(ti)
             
+    def check_if_any_chosen(self,ti):
+        if len(self.chosen_indicators) > 0:
+            return True
+        return False
+
+    def chosen_deletion_countdown(self):
+        pass #do zrobienia odliczanie czasu, animacja zanikania i usunięcie
+
+    def chosen_deletion_countdown_reset(self):
+        self.chosen_deletion_timer=self.DEL_TIMER_MAX
+        self.is_chosen_deletion_running = False
 
     def update_choice_countdown_state(self):
         if len(self.touch_indicators) >= 2 and not len(self.chosen_indicators) > 0:
@@ -343,12 +337,13 @@ class MyApp(App):
         widget=Widget(width=WINDOW_WIDTH,height=WINDOW_HEIGHT)
         input_handler.root_widget=widget
         input_handler.tick_event=Clock.schedule_interval(self.frametick,1/Config.getint('graphics','maxfps'))
-        #with widget.canvas:
-        #    Color(1.,1.,0)
-        #    Rectangle(size=(widget.width,widget.height),pos=widget.pos)
         return widget
     def frametick(self,dt):
-        print(Clock.get_fps())
+        print(len(input_handler.chosen_indicators))
+        print(len(input_handler.touch_indicators))
+        print(len(input_handler.ti_to_remove))
+        print()
+        #print(Clock.get_fps())
         for ti in input_handler.touch_indicators.values():
             ti.outline_animation_fill(dt,360,200)
             ti.outline_animation_drain(dt,720)
@@ -358,10 +353,10 @@ class MyApp(App):
             ti.outline_animation_drain(dt,720)
             ti.circle()
             if ti.is_drain_running==False:
-                self.update_choice_countdown_state()
+                input_handler.update_choice_countdown_state()
                 ti.delete()
-                self.animation.cancel(ti)
-                self.root_widget.remove_widget(ti)
+                input_handler.animation.cancel(ti)
+                input_handler.root_widget.remove_widget(ti)
         for ot in input_handler.order_trackers.values():
             ot.draw()
         if input_handler.is_choice_running:
