@@ -139,9 +139,9 @@ class TouchIndicator(Widget):
             arch_angle_encircle=self.set_general_angle_restricted(self.drained_angle*circum_rate)
             start_angle_encircle=self.set_general_angle_restricted(encircle_info[1]+move_rate_encircle*self.drain_move_seconds)
             end_angle_encircle=self.set_general_angle_restricted(start_angle_encircle+arch_angle_encircle)
-            print(start_angle_encircle)
-            print(end_angle_encircle)
-            print()
+            #print(start_angle_encircle)
+            #print(end_angle_encircle)
+            #print()
             encircle = encircle_info[0]
             encircle.append(start_angle_encircle)
             encircle.append(end_angle_encircle)
@@ -164,7 +164,9 @@ class TouchIndicator(Widget):
             if self.number:
                 Color(0,0,0)
                 Numbers.method(self.number)(0.6*self.size[0],self.pos,self.number)
-                
+
+    def self_destruct(self):
+        pass
         
     def delete(self):
         self.canvas.clear()
@@ -260,9 +262,10 @@ class InputHandler():
         self.is_choice_done=False
         self.choice_timer=0
         self.max_trackers=(WINDOW_HEIGHT-2*Metrics.mm)/(5*Metrics.mm)
-        self.DEL_TIME_MAX = 5000
+        self.DEL_TIME_MAX = 5
         self.chosen_deletion_timer = self.DEL_TIME_MAX
         self.is_chosen_deletion_running = False
+        self.animation_implode=Animation(size=(1,1),duration=self.DEL_TIME_MAX)
    
     def choice_process(self):
         if self.choice_timer < 120:
@@ -301,7 +304,9 @@ class InputHandler():
     def on_release(self, event, touch):
         if self.chosen_indicators.count(self.touch_indicators.get(touch.uid)) == 0:
             ti = self.touch_indicators.pop(touch.uid)
-            self.ti_to_remove.append(ti)
+            ti.delete()
+            input_handler.animation.cancel(ti)
+            input_handler.root_widget.remove_widget(ti)
             #if self.chosen_indicators.count(ti) > 0: ###trzeba zrobić usuwanie
             #    self.chosen_indicators.remove(ti)    ###ti już użytych do losowania
             
@@ -309,17 +314,38 @@ class InputHandler():
             ti = self.touch_indicators.pop(touch.uid)
             self.ti_to_remove.append(ti)
             
-    def check_if_any_chosen(self,ti):
+    def check_if_any_chosen(self):
         if len(self.chosen_indicators) > 0:
             return True
         return False
 
-    def chosen_deletion_countdown(self):
-        pass #do zrobienia odliczanie czasu, animacja zanikania i usunięcie
+    def chosen_deletion_countdown_start(self):
+        self.is_chosen_deletion_running=True
+        for ti in self.chosen_indicators:
+            print("buujaa")
+            Animation.cancel_all(ti) #Animacja jest jak zabiorę nowe kółko, ale nie ma jak zostawię
+            self.animation_implode.start(ti)
+        
+    def chosen_deletion_countdown(self, dt):
+        self.chosen_deletion_timer-=dt
+        print(self.chosen_deletion_timer)
+        if self.chosen_deletion_timer <=0:
+            for ti in self.chosen_indicators:
+                ti.delete()
+                input_handler.animation.cancel(ti)
+                input_handler.root_widget.remove_widget(ti)
+                if input_handler.ti_to_remove.count(ti) > 0:
+                    input_handler.ti_to_remove.remove(ti) 
+                input_handler.chosen_indicators.remove(ti)
+            if len(self.chosen_indicators)==0:
+                self.chosen_deletion_countdown_reset()
 
     def chosen_deletion_countdown_reset(self):
-        self.chosen_deletion_timer=self.DEL_TIMER_MAX
+        self.chosen_deletion_timer=self.DEL_TIME_MAX
         self.is_chosen_deletion_running = False
+        for ti in self.chosen_indicators:
+            Animation.cancel_all(ti)
+            self.animation_shrink.start(ti)
 
     def update_choice_countdown_state(self):
         if len(self.touch_indicators) >= 2 and not len(self.chosen_indicators) > 0:
@@ -344,6 +370,9 @@ class MyApp(App):
         print(len(input_handler.ti_to_remove))
         print()
         #print(Clock.get_fps())
+        self.update_chosen_deletion()
+        if input_handler.is_chosen_deletion_running:
+            input_handler.chosen_deletion_countdown(dt)
         for ti in input_handler.touch_indicators.values():
             ti.outline_animation_fill(dt,360,200)
             ti.outline_animation_drain(dt,720)
@@ -353,14 +382,28 @@ class MyApp(App):
             ti.outline_animation_drain(dt,720)
             ti.circle()
             if ti.is_drain_running==False:
-                input_handler.update_choice_countdown_state()
-                ti.delete()
-                input_handler.animation.cancel(ti)
-                input_handler.root_widget.remove_widget(ti)
+                pass
         for ot in input_handler.order_trackers.values():
             ot.draw()
         if input_handler.is_choice_running:
             input_handler.choice_process()
+
+            
+    def update_chosen_deletion(self):
+        if input_handler.check_if_any_chosen():
+            if input_handler.is_choice_running:
+                should_be_reset = True
+                for ti in input_handler.touch_indicators.values():
+                    if ti not in input_handler.chosen_indicators:
+                        should_be_reset = False
+                        break
+                if should_be_reset:
+                    input_handler.chosen_deletion_countdown_reset()
+            else:
+                for ti in input_handler.touch_indicators.values():
+                    if ti not in input_handler.chosen_indicators:
+                        input_handler.chosen_deletion_countdown_start()
+                        break
                 
 Numbers = vertex.numbers.Numbers()
 input_handler = InputHandler()
