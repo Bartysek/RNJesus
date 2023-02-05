@@ -26,8 +26,9 @@ class Circle(Ellipse):
 
 #kółko pojawiające się przy dotknięciu ekranu
 class TouchIndicator(Widget):
-    def __init__(self):
+    def __init__(self,touch_id):
         super().__init__()
+        self.touch_id=touch_id
         self.start_angle=random.random()*360
         self.arch_angle=20
         self.drain_angle_start=0
@@ -180,11 +181,12 @@ class OrderTracker(Widget):
         self.green=0
         self.blue=0
         self.end_point=[self.pos[0],self.pos[1]]
-        
+        self.is_imploding=False
         self.fill_rate=0
 
     FILL_RATE_CONVERSION=Metrics.mm/5000
-
+    IMPLODE_RATE=Metrics.cm
+    
     def calculate_circle_from_touch_indicator(self, touch_indicator):
         x1=self.pos[0] #==x2
         y2=self.pos[1]
@@ -242,7 +244,16 @@ class OrderTracker(Widget):
         self.red=r
         self.green=g
         self.blue=b
-        
+
+    def implode(self):
+        self.is_imploding=True
+
+    def implode_process(self,dt):
+        self.pos[0]+=OrderTracker.IMPLODE_RATE*dt
+        if self.pos[0]>=WINDOW_WIDTH:
+            self.set_color(0,0,0)
+            self.pos[0]=WINDOW_WIDTH-1*Metrics.cm
+            self.is_imploding=False
         
 
 #dystrybutor eventów
@@ -250,6 +261,7 @@ class InputHandler():
     def __init__(self):
         print("ih init")
         self.touch_indicators = {}
+        self.blacklist_touches = []
         self.ti_to_remove = []
         self.order_trackers = {}
         self.chosen_indicators = []
@@ -286,33 +298,37 @@ class InputHandler():
     def on_move(self, event, etype, me):
         if me.is_touch:
             pos = me.to_absolute_pos(me.sx,me.sy,WINDOW_WIDTH,WINDOW_HEIGHT,0)
-            if me.uid not in self.touch_indicators:
-                ti=TouchIndicator()
-                self.touch_indicators[me.uid]=ti
-                self.root_widget.add_widget(ti)
-                self.animation.start(ti)
-                self.update_choice_countdown_state()
-            if len(self.touch_indicators) > len(self.order_trackers):
-                number=len(self.order_trackers)+1
-                if not number > self.max_trackers:
-                    ot=OrderTracker(number)
-                    self.order_trackers[number] = ot
-                    self.root_widget.add_widget(ot)
-            self.touch_indicators[me.uid].pos=pos
+            if me.uid not in self.blacklist_touches:
+                if me.uid not in self.touch_indicators:
+                    ti=TouchIndicator(me.uid)
+                    self.touch_indicators[me.uid]=ti
+                    self.root_widget.add_widget(ti)
+                    self.animation.start(ti)
+                    self.update_choice_countdown_state()
+                if len(self.touch_indicators) > len(self.order_trackers):
+                    number=len(self.order_trackers)+1
+                    if not number > self.max_trackers:
+                        ot=OrderTracker(number)
+                        self.order_trackers[number] = ot
+                        self.root_widget.add_widget(ot)
+                self.touch_indicators[me.uid].pos=pos
         pass
 
     def on_release(self, event, touch):
-        if self.chosen_indicators.count(self.touch_indicators.get(touch.uid)) == 0:
-            ti = self.touch_indicators.pop(touch.uid)
-            ti.delete()
-            input_handler.animation.cancel(ti)
-            input_handler.root_widget.remove_widget(ti)
-            #if self.chosen_indicators.count(ti) > 0: ###trzeba zrobić usuwanie
-            #    self.chosen_indicators.remove(ti)    ###ti już użytych do losowania
+        if touch.uid in self.touch_indicators.keys():
+            if self.chosen_indicators.count(self.touch_indicators.get(touch.uid)) == 0:
+                ti = self.touch_indicators.pop(touch.uid)
+                ti.delete()
+                input_handler.animation.cancel(ti)
+                input_handler.root_widget.remove_widget(ti)
+                #if self.chosen_indicators.count(ti) > 0: ###trzeba zrobić usuwanie
+                #    self.chosen_indicators.remove(ti)    ###ti już użytych do losowania
             
-        else:
-            ti = self.touch_indicators.pop(touch.uid)
-            self.ti_to_remove.append(ti)
+            else:
+                ti = self.touch_indicators.pop(touch.uid)
+                self.ti_to_remove.append(ti)
+        elif touch.uid in self.blacklist_touches:
+            self.blacklist_touches.remove(touch.uid)
             
     def check_if_any_chosen(self):
         if len(self.chosen_indicators) > 0:
@@ -325,20 +341,32 @@ class InputHandler():
             print("buujaa")
             Animation.cancel_all(ti) #Animacja jest jak zabiorę nowe kółko, ale nie ma jak zostawię
             self.animation_implode.start(ti)
-        
+            
+    def is_in_iterable(self, iterable, thing):
+        for i in iterable:
+            if i == thing:
+                return True
+        return False
+    
     def chosen_deletion_countdown(self, dt):
         self.chosen_deletion_timer-=dt
         print(self.chosen_deletion_timer)
         if self.chosen_deletion_timer <=0:
             for ti in self.chosen_indicators:
                 ti.delete()
-                input_handler.animation.cancel(ti)
-                input_handler.root_widget.remove_widget(ti)
-                if input_handler.ti_to_remove.count(ti) > 0:
-                    input_handler.ti_to_remove.remove(ti) 
-                input_handler.chosen_indicators.remove(ti)
+                self.animation.cancel(ti)
+                self.root_widget.remove_widget(ti)
+                if self.is_in_iterable(self.touch_indicators.keys(),ti.touch_id):
+                    self.touch_indicators.pop(ti.touch_id)
+                    self.blacklist_touches.append(ti.touch_id)
+                if self.ti_to_remove.count(ti) > 0:
+                    self.ti_to_remove.remove(ti) 
+                self.chosen_indicators.remove(ti)
+            for ot in self.order_trackers.values():
+                ot.implode()
             if len(self.chosen_indicators)==0:
                 self.chosen_deletion_countdown_reset()
+                self.update_choice_countdown_state()
 
     def chosen_deletion_countdown_reset(self):
         self.chosen_deletion_timer=self.DEL_TIME_MAX
@@ -385,13 +413,15 @@ class MyApp(App):
                 pass
         for ot in input_handler.order_trackers.values():
             ot.draw()
+            if ot.is_imploding:
+                ot.implode_process(dt)
         if input_handler.is_choice_running:
             input_handler.choice_process()
 
             
     def update_chosen_deletion(self):
         if input_handler.check_if_any_chosen():
-            if input_handler.is_choice_running:
+            if input_handler.is_chosen_deletion_running:
                 should_be_reset = True
                 for ti in input_handler.touch_indicators.values():
                     if ti not in input_handler.chosen_indicators:
