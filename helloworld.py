@@ -26,25 +26,27 @@ class Circle(Ellipse):
 
 #kółko pojawiające się przy dotknięciu ekranu
 class TouchIndicator(Widget):
-    def __init__(self,touch_id):
+    def __init__(self,touch_id,color):
         super().__init__()
         self.touch_id=touch_id
+        self.red=color[0]
+        self.green=color[1]
+        self.blue=color[2]
         self.start_angle=random.random()*360
         self.arch_angle=20
         self.drain_angle_start=0
         self.size=(0.8*Metrics.cm,0.8*Metrics.cm)
         self.fill_done=False
         self.segments = [[random.random()*360,60]]
-        self.red=random.random()
-        self.green=random.random()
-        self.blue=random.random()
         self.number=False
         self.is_drain_running=False
         self.encircle=[]
         self.draining_angle=0
         self.drained_angle=0
         self.drain_move_seconds=0
-
+                
+        
+    
     def choice_display(self,place,out_of):
         self.number=place+1 #zaczyna się od 0
         self.is_drain_running=True #todo drain animation
@@ -192,6 +194,7 @@ class TouchIndicator(Widget):
         
     def delete(self):
         self.canvas.clear()
+        input_handler.color_palette.recycle_color((self.red,self.green,self.blue))
 
 class OrderTracker(Widget):
     def __init__(self, number):
@@ -278,10 +281,65 @@ class OrderTracker(Widget):
             self.is_imploding=False
         
 
+class ColorPalette():
+    def __init__(self):
+        self.colors=[]
+        color_codes=[]
+        color_codes.append("F1232F")
+        color_codes.append("FA8126")
+        color_codes.append("FFE65A")
+        color_codes.append("9FE302")
+        color_codes.append("2461AF")
+        color_codes.append("8B4256")
+        color_codes.append("6F1918")
+        color_codes.append("A14224")
+        color_codes.append("BA9A37")
+        color_codes.append("5B5823")
+        color_codes.append("2F4B73")
+        color_codes.append("532D52")
+        color_codes.append("FFFFFF")
+        color_codes.append("888888")
+        for code in color_codes:
+            self.colors.append(self.convert_from_hex_colors(code))
+         
+        
+    def convert_from_hex_colors(self,hex_color):
+        if len(hex_color) != 6:
+            return
+        def to_numbers(character):
+            match character:
+                case 'F':
+                    return 15
+                case 'E':
+                    return 14
+                case 'D':
+                    return 13
+                case 'C':
+                    return 12
+                case 'B':
+                    return 11
+                case 'A':
+                    return 10
+                case _:
+                    return int(character)
+        red=(16*to_numbers(hex_color[0])+to_numbers(hex_color[1]))/255
+        green=(16*to_numbers(hex_color[2])+to_numbers(hex_color[3]))/255
+        blue=(16*to_numbers(hex_color[4])+to_numbers(hex_color[5]))/255
+        return (red,green,blue)
+    
+    def take_color(self):
+        rand=math.floor(random.random()*len(self.colors))
+        return self.colors.pop(rand)
+
+    def recycle_color(self,color):
+        self.colors.append(color)
+        
+
 #dystrybutor eventów
 class InputHandler():
     def __init__(self):
         print("ih init")
+        self.color_palette=ColorPalette()
         self.touch_indicators = {}
         self.blacklist_touches = []
         self.ti_to_remove = []
@@ -322,7 +380,7 @@ class InputHandler():
             pos = me.to_absolute_pos(me.sx,me.sy,WINDOW_WIDTH,WINDOW_HEIGHT,0)
             if me.uid not in self.blacklist_touches:
                 if me.uid not in self.touch_indicators:
-                    ti=TouchIndicator(me.uid)
+                    ti=TouchIndicator(me.uid,self.color_palette.take_color())
                     self.touch_indicators[me.uid]=ti
                     self.root_widget.add_widget(ti)
                     self.animation.start(ti)
