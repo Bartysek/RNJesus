@@ -127,32 +127,53 @@ class TouchIndicator(Widget):
             self.is_drain_running = False
             return True
         if self.number <= input_handler.max_trackers:
-            encircle_info=input_handler.order_trackers.get(self.number).calculate_circle_from_touch_indicator(self)
+            order_tracker=input_handler.order_trackers.get(self.number)
+            encircle_info=order_tracker.calculate_circle_from_touch_indicator(self)
             self.draining_angle=encircle_info[1]
         self.drained_angle=self.set_general_angle_restricted(dt*drain_rate+self.drained_angle)
         self.set_start_angle(self.draining_angle+self.drained_angle)
         self.set_arch_angle(360-self.drained_angle)
         if self.number <= input_handler.max_trackers:
-            if self.segments[0][1]==0:
-                self.drain_move_seconds+=dt
-            circum_rate=encircle_info[2]
-            move_rate_encircle=drain_rate*circum_rate
-            arch_angle_encircle=self.set_general_angle_restricted(self.drained_angle*circum_rate)
-            start_angle_encircle=self.set_general_angle_restricted(encircle_info[1]+move_rate_encircle*self.drain_move_seconds)
-            end_angle_encircle=self.set_general_angle_restricted(start_angle_encircle+arch_angle_encircle)
-            #print(start_angle_encircle)
-            #print(end_angle_encircle)
-            #print()
-            encircle = encircle_info[0]
-            encircle.append(start_angle_encircle)
-            encircle.append(end_angle_encircle)
-            self.encircle=encircle
-            if end_angle_encircle==360:
-                input_handler.order_trackers.get(self.number).fill(drain_rate)
-            if start_angle_encircle==360:
-                self.is_drain_running = False
-                return True
-            
+            if self.pos[1]-self.size[0] < order_tracker.pos[1]:
+                if self.segments[0][1]==0:
+                    self.drain_move_seconds+=dt
+                circum_rate=encircle_info[2]
+                move_rate_encircle=drain_rate*circum_rate
+                arch_angle_encircle=self.set_general_angle_restricted(self.drained_angle*circum_rate)
+                start_angle_encircle=self.set_general_angle_restricted(encircle_info[1]+move_rate_encircle*self.drain_move_seconds)
+                end_angle_encircle=self.set_general_angle_restricted(start_angle_encircle+arch_angle_encircle)
+                #print(start_angle_encircle)
+                #print(end_angle_encircle)
+                #print()
+                encircle = encircle_info[0]
+                encircle.append(start_angle_encircle)
+                encircle.append(end_angle_encircle)
+                self.encircle=encircle
+                if end_angle_encircle==360:
+                    input_handler.order_trackers.get(self.number).fill(drain_rate)
+                if start_angle_encircle==360:
+                    self.is_drain_running = False
+                    return True
+            else:
+                if self.segments[0][1]==0:
+                    self.drain_move_seconds+=dt
+                circum_rate=encircle_info[2]
+                move_rate_encircle=drain_rate*circum_rate
+                arch_angle_encircle=self.set_general_angle_restricted(self.drained_angle*circum_rate)
+                end_angle_encircle=self.set_general_angle_restricted(encircle_info[1]-move_rate_encircle*self.drain_move_seconds-180)+180 #idzie w drugą stronę
+                start_angle_encircle=self.set_general_angle_restricted(end_angle_encircle-arch_angle_encircle-180)+180
+                print(start_angle_encircle)
+                print(end_angle_encircle)
+                print()
+                encircle = encircle_info[0]
+                encircle.append(start_angle_encircle)
+                encircle.append(end_angle_encircle)
+                self.encircle=encircle
+                if start_angle_encircle==180:
+                    input_handler.order_trackers.get(self.number).fill(drain_rate)
+                if end_angle_encircle==180:
+                    self.is_drain_running = False
+                    return True
             
     def circle(self):
         self.canvas.clear()
@@ -228,7 +249,7 @@ class OrderTracker(Widget):
         self.canvas.clear()
         if self.fill_rate > 0:
             self.end_point[0]+=self.fill_rate*OrderTracker.FILL_RATE_CONVERSION
-        if self.end_point[0]==WINDOW_WIDTH:
+        if self.end_point[0]>=WINDOW_WIDTH:
             self.fill_rate=0
         if self.pos==self.end_point:
             return
@@ -253,6 +274,7 @@ class OrderTracker(Widget):
         if self.pos[0]>=WINDOW_WIDTH:
             self.set_color(0,0,0)
             self.pos[0]=WINDOW_WIDTH-1*Metrics.cm
+            self.end_point[0]=self.pos[0]
             self.is_imploding=False
         
 
@@ -393,10 +415,10 @@ class MyApp(App):
         input_handler.tick_event=Clock.schedule_interval(self.frametick,1/Config.getint('graphics','maxfps'))
         return widget
     def frametick(self,dt):
-        print(len(input_handler.chosen_indicators))
-        print(len(input_handler.touch_indicators))
-        print(len(input_handler.ti_to_remove))
-        print()
+        #print(len(input_handler.chosen_indicators))
+        #print(len(input_handler.touch_indicators))
+        #print(len(input_handler.ti_to_remove))
+        #print()
         #print(Clock.get_fps())
         self.update_chosen_deletion()
         if input_handler.is_chosen_deletion_running:
