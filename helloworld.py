@@ -32,6 +32,7 @@ class TouchIndicator(Widget):
         self.red=color[0]
         self.green=color[1]
         self.blue=color[2]
+        self.is_color_recyclable=color[3]
         self.start_angle=random.random()*360
         self.arch_angle=20
         self.drain_angle_start=0
@@ -194,7 +195,8 @@ class TouchIndicator(Widget):
         
     def delete(self):
         self.canvas.clear()
-        input_handler.color_palette.recycle_color((self.red,self.green,self.blue))
+        if self.is_color_recyclable:
+            input_handler.color_palette.recycle_color([self.red,self.green,self.blue])
 
 class OrderTracker(Widget):
     def __init__(self, number):
@@ -300,10 +302,10 @@ class ColorPalette():
         color_codes.append("FFFFFF")
         color_codes.append("888888")
         for code in color_codes:
-            self.colors.append(self.convert_from_hex_colors(code))
+            self.colors.append(ColorPalette.convert_from_hex_colors(code))
          
         
-    def convert_from_hex_colors(self,hex_color):
+    def convert_from_hex_colors(hex_color):
         if len(hex_color) != 6:
             return
         def to_numbers(character):
@@ -325,12 +327,34 @@ class ColorPalette():
         red=(16*to_numbers(hex_color[0])+to_numbers(hex_color[1]))/255
         green=(16*to_numbers(hex_color[2])+to_numbers(hex_color[3]))/255
         blue=(16*to_numbers(hex_color[4])+to_numbers(hex_color[5]))/255
-        return (red,green,blue)
+        return [red,green,blue]
     
     def take_color(self):
-        rand=math.floor(random.random()*len(self.colors))
-        return self.colors.pop(rand)
-
+        if len(self.colors) > 0:
+            rand=math.floor(random.random()*len(self.colors))
+            color = self.colors.pop(rand)
+            is_recyclable=True
+            color.append(is_recyclable)
+            return color
+        else:
+            return ColorPalette.generate_color()
+            
+    def generate_color():
+        red = random.random()
+        green = random.random()
+        blue = random.random()
+        is_recyclable=False
+        if red>blue and red>green:
+            ratio=.99/red
+        elif blue>green:
+            ratio=.99/blue
+        else:
+            ratio=.99/green
+        red*=ratio
+        green*=ratio
+        blue*=ratio
+        return [red,green,blue,is_recyclable]
+        
     def recycle_color(self,color):
         self.colors.append(color)
         
