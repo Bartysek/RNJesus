@@ -165,9 +165,9 @@ class TouchIndicator(Widget):
                 arch_angle_encircle=self.set_general_angle_restricted(self.drained_angle*circum_rate)
                 end_angle_encircle=self.set_general_angle_restricted(encircle_info[1]-move_rate_encircle*self.drain_move_seconds-180)+180 #idzie w drugą stronę
                 start_angle_encircle=self.set_general_angle_restricted(end_angle_encircle-arch_angle_encircle-180)+180
-                print(start_angle_encircle)
-                print(end_angle_encircle)
-                print()
+                #print(start_angle_encircle)
+                #print(end_angle_encircle)
+                #print()
                 encircle = encircle_info[0]
                 encircle.append(start_angle_encircle)
                 encircle.append(end_angle_encircle)
@@ -224,7 +224,7 @@ class OrderTracker(Widget):
         c=(y2**4)-2*(y2**2)*(r**2)-2*(y2**2)*(y3**2)-2*(y2**2)*(x3**2)-2*(y2**2)*(x1**2)+4*(y2**2)*x1*x3+(r**4)+2*(r**2)*(y3**2)+2*(r**2)*(x3**2)+2*(r**2)*(x1**2)-4*(r**2)*x1*x3+(y3**4)+2*(x3**2)*(y3**2)+2*(y3**2)*(x1**2)-4*x1*x3*(y3**2)+(x3**4)+2*(x1**2)*(x3**2)-4*x1*(x3**3)+(x1**4)-4*(x1**3)*x3+4*(x1**2)*(x3**2)-4*(r**2)*(y3**2)-4*(r**2)*(x3**2)+8*x3*x1*(r**2)-4*(x1**2)*(r**2)
         delta=(b**2)-4*a*c
         if delta<0:
-            print("bad delta tho")
+            #print("bad delta tho")
             return False
         y1_1=(-b-math.sqrt(delta))/(2*a)
         y1_2=(-b+math.sqrt(delta))/(2*a)
@@ -362,7 +362,7 @@ class ColorPalette():
 #dystrybutor eventów
 class InputHandler():
     def __init__(self):
-        print("ih init")
+        #print("ih init")
         self.color_palette=ColorPalette()
         self.touch_indicators = {}
         self.blacklist_touches = []
@@ -442,7 +442,7 @@ class InputHandler():
     def chosen_deletion_countdown_start(self):
         self.is_chosen_deletion_running=True
         for ti in self.chosen_indicators:
-            print("buujaa")
+            #print("buujaa")
             Animation.cancel_all(ti) #Animacja jest jak zabiorę nowe kółko, ale nie ma jak zostawię
             self.animation_implode.start(ti)
             
@@ -454,7 +454,7 @@ class InputHandler():
     
     def chosen_deletion_countdown(self, dt):
         self.chosen_deletion_timer-=dt
-        print(self.chosen_deletion_timer)
+        #print(self.chosen_deletion_timer)
         if self.chosen_deletion_timer <=0:
             for ti in self.chosen_indicators:
                 ti.delete()
