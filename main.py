@@ -309,21 +309,20 @@ class ColorPalette():
         if len(hex_color) != 6:
             return
         def to_numbers(character):
-            match character:
-                case 'F':
-                    return 15
-                case 'E':
-                    return 14
-                case 'D':
-                    return 13
-                case 'C':
-                    return 12
-                case 'B':
-                    return 11
-                case 'A':
-                    return 10
-                case _:
-                    return int(character)
+            if character=='F':
+                return 15
+            elif character== 'E':
+                return 14
+            elif character== 'D':
+                return 13
+            elif character== 'C':
+                return 12
+            elif character== 'B':
+                return 11
+            elif character== 'A':
+                return 10
+            else:
+                return int(character)
         red=(16*to_numbers(hex_color[0])+to_numbers(hex_color[1]))/255
         green=(16*to_numbers(hex_color[2])+to_numbers(hex_color[3]))/255
         blue=(16*to_numbers(hex_color[4])+to_numbers(hex_color[5]))/255

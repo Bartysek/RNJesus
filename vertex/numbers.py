@@ -7,29 +7,28 @@ class Numbers():
     def method(self,number):
         if number < 0:
             return self.null
-        match number:
-            case 0:
-                return self.zero
-            case 1:
-                return self.one
-            case 2:
-                return self.two
-            case 3:
-                return self.three
-            case 4:
-                return self.four
-            case 5:
-                return self.five
-            case 6:
-                return self.six
-            case 7:
-                return self.seven
-            case 8:
-                return self.eight
-            case 9:
-                return self.nine
-            case _:
-                return self.double_digit
+        if number==0:
+            return self.zero
+        if number==1:
+            return self.one
+        if number==2:
+            return self.two
+        if number==3:
+            return self.three
+        if number==4:
+            return self.four
+        if number==5:
+            return self.five
+        if number==6:
+            return self.six
+        if number==7:
+            return self.seven
+        if number==8:
+            return self.eight
+        if number==9:
+            return self.nine
+        else:
+            return self.double_digit
     def null(self,size=0,pos=0,number=0):
         pass
 
