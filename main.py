@@ -9,6 +9,7 @@ from kivy.clock import Clock
 from kivy.config import Config
 from kivy.animation import Animation
 from kivy.core.image import Image
+from plyer import vibrator
 import vertex.numbers
 
 WINDOW_HEIGHT=Window.height
@@ -42,6 +43,7 @@ class TouchIndicator(Widget):
         self.number=False
         self.is_drain_running=False
         self.encircle=[]
+        self.encircle2=False
         self.draining_angle=0
         self.drained_angle=0
         self.drain_move_seconds=0
@@ -105,12 +107,31 @@ class TouchIndicator(Widget):
             self.segments[0][1]=angle
 
     def set_general_angle_restricted(self,angle):
-        ret=angle
         if angle>=360:
-            ret=360
+            angle=360
         elif angle<0:
-            ret=0
-        return ret
+            angle=0
+        return angle
+
+    def set_general_angle_cycling(angle):
+        if angle>360:
+            angle-=angle%360
+        elif angle<0:
+            angle+=math.abs(angle)%360
+        return angle
+    def set_inverse_general_angle_restricted(self,angle):
+        angle=TouchIndicator.set_general_angle_cycling(angle)
+        pass #not working
+        
+
+    def set_specialcase_angle_restricted(self,angle,restriction_angle,restricted_area_start,restricted_area_end):
+        if angle>360:
+            angle-=360
+        elif angle<0:
+            angle+=360
+        if angle>restricted_area_start and angle<restricted_area_end:
+            angle=restriction_angle
+        return angle
             
     def cycle_outline(self,dt,frequency):
         self.set_start_angle(self.segments[0][0]+(dt/frequency)*360)
@@ -137,6 +158,7 @@ class TouchIndicator(Widget):
         self.set_start_angle(self.draining_angle+self.drained_angle)
         self.set_arch_angle(360-self.drained_angle)
         if self.number <= input_handler.max_trackers:
+            self.encircle2=False
             if self.pos[1]-self.size[0] < order_tracker.pos[1]:
                 if self.segments[0][1]==0:
                     self.drain_move_seconds+=dt
@@ -155,6 +177,26 @@ class TouchIndicator(Widget):
                 if end_angle_encircle==360:
                     input_handler.order_trackers.get(self.number).fill(drain_rate)
                 if start_angle_encircle==360:
+                    self.is_drain_running = False
+                    return True
+            elif self.pos[0]>order_tracker.pos[0]:
+                if self.segments[0][1]==0:
+                    self.drain_move_seconds+=dt
+                circum_rate=encircle_info[2]
+                move_rate_encircle=drain_rate*circum_rate
+                arch_angle_encircle=self.set_general_angle_restricted(self.drained_angle*circum_rate)
+                start_angle_encircle=self.set_general_angle_restricted(encircle_info[1]+move_rate_encircle*self.drain_move_seconds+180)-180
+                end_angle_encircle=self.set_general_angle_restricted(start_angle_encircle+arch_angle_encircle+180)-180
+                #print(start_angle_encircle)
+                #print(end_angle_encircle)
+                #print()
+                encircle = encircle_info[0]
+                encircle.append(start_angle_encircle)
+                encircle.append(end_angle_encircle)
+                self.encircle=encircle
+                if end_angle_encircle==180:
+                    input_handler.order_trackers.get(self.number).fill(drain_rate)
+                if start_angle_encircle==180:
                     self.is_drain_running = False
                     return True
             else:
@@ -186,6 +228,8 @@ class TouchIndicator(Widget):
             self.outline_instructions()
             if self.is_drain_running and self.is_connected_to_order_tracker():
                 Line(width=0.04*Metrics.cm,circle=self.encircle)
+                if self.encircle2:
+                    Line(width=0.04*Metrics.cm,circle=self.encircle2)
             if self.number:
                 Color(0,0,0)
                 Numbers.method(self.number)(0.6*self.size[0],self.pos,self.number)
@@ -387,6 +431,12 @@ class InputHandler():
             self.choice_timer+=1
         else:
             places = []
+            try:
+                vibrator.vibrate(0.5)
+            except NotImplementedError:
+                pass
+            except ModuleNotFoundError:
+                pass
             for u in self.touch_indicators:
                 places.append(len(places))
             number_places=len(places)
